@@ -1,0 +1,20 @@
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Python caches
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Local config & data (keep secrets/notes out of the repo)
+config.json
+jarvis_notes.txt
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

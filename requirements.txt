@@ -1,0 +1,17 @@
+# Core voice assistant dependencies (Windows 10)
+
+# Text-to-speech (offline, uses Windows SAPI5 voices)
+pyttsx3==2.90
+
+# Speech recognition (speech-to-text)
+SpeechRecognition==3.10.4
+
+# Microphone access for SpeechRecognition.
+# On Windows 10, modern pip ships prebuilt wheels, so this usually "just works":
+#   pip install PyAudio
+# If it fails, install via pipwin:
+#   pip install pipwin && pipwin install pyaudio
+PyAudio==0.2.14
+
+# HTTP client used by the LLM brain
+requests==2.32.3
