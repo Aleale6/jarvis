@@ -12,6 +12,7 @@ __pycache__/
 # Local config & data (keep secrets/notes out of the repo)
 config.json
 jarvis_notes.txt
+jarvis_events.log
 
 # OS / editor
 .DS_Store

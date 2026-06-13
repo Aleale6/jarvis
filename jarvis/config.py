@@ -9,6 +9,7 @@ Environment overrides:
     JARVIS_MODEL     -> llm.model
     JARVIS_BASE_URL  -> llm.base_url
     JARVIS_WAKE_WORD -> wake_word
+    JARVIS_LANGUAGE  -> language  (en | ru | de | ar)
 """
 
 from __future__ import annotations
@@ -23,6 +24,8 @@ from typing import Any, Dict
 DEFAULTS: Dict[str, Any] = {
     "assistant_name": "Jarvis",
     "wake_word": "jarvis",
+    "language": "en",
+    "auto_detect_language": True,
     "voice": {"rate": 175, "volume": 1.0, "voice_index": 0},
     "listener": {
         "energy_threshold": 300,
@@ -31,11 +34,23 @@ DEFAULTS: Dict[str, Any] = {
         "phrase_time_limit": 8,
         "language": "en-US",
     },
+    "safety": {
+        "granted_permissions": [],
+        "blocked_permissions": [],
+        "confirm_medium_risk": True,
+        "auto_confirm": False,
+    },
+    "logging": {
+        "file": "jarvis_events.log",
+        "echo_console": True,
+    },
     "llm": {
         "enabled": True,
         "base_url": "https://api.openai.com/v1",
         "api_key": "",
         "model": "gpt-4o-mini",
+        "private": False,
+        "providers": [],
         "system_prompt_file": "jarvis/brain/system_prompt.md",
         "system_prompt": (
             "You are JARVIS, a concise, helpful voice assistant. "
@@ -107,20 +122,41 @@ class Config:
 
     @staticmethod
     def _apply_env_overrides(data: Dict[str, Any]) -> Dict[str, Any]:
+        llm = data.setdefault("llm", {})
         api_key = os.environ.get("JARVIS_API_KEY")
-        if api_key:
-            data["llm"]["api_key"] = api_key
-
         model = os.environ.get("JARVIS_MODEL")
-        if model:
-            data["llm"]["model"] = model
-
         base_url = os.environ.get("JARVIS_BASE_URL")
+
+        # Always set the flat keys so the legacy single-provider path works.
+        if api_key:
+            llm["api_key"] = api_key
+        if model:
+            llm["model"] = model
         if base_url:
-            data["llm"]["base_url"] = base_url
+            llm["base_url"] = base_url
+
+        # When a providers list is configured, route the env secret to the first
+        # OpenAI-compatible provider (or the first provider) so users can supply a
+        # key via environment without editing config.json.
+        providers = llm.get("providers") or []
+        if providers and (api_key or model or base_url):
+            target = next(
+                (p for p in providers if str(p.get("type", "")).lower() in ("openai", "local")),
+                providers[0],
+            )
+            if api_key:
+                target["api_key"] = api_key
+            if model:
+                target["model"] = model
+            if base_url:
+                target["base_url"] = base_url
 
         wake = os.environ.get("JARVIS_WAKE_WORD")
         if wake:
             data["wake_word"] = wake
+
+        language = os.environ.get("JARVIS_LANGUAGE")
+        if language:
+            data["language"] = language
 
         return data
