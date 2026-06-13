@@ -36,6 +36,7 @@ DEFAULTS: Dict[str, Any] = {
         "base_url": "https://api.openai.com/v1",
         "api_key": "",
         "model": "gpt-4o-mini",
+        "system_prompt_file": "jarvis/brain/system_prompt.md",
         "system_prompt": (
             "You are JARVIS, a concise, helpful voice assistant. "
             "Keep spoken replies short (1-3 sentences) unless asked for detail."

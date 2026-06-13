@@ -11,7 +11,12 @@ working regardless.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+# Inline fallback used only if neither a prompt file nor a configured
+# ``system_prompt`` string is available.
+_FALLBACK_SYSTEM_PROMPT = "You are JARVIS, a concise voice assistant."
 
 
 class LLMBrain:
@@ -20,13 +25,52 @@ class LLMBrain:
         self.base_url = str(cfg.get("base_url", "https://api.openai.com/v1")).rstrip("/")
         self.api_key = cfg.get("api_key", "") or ""
         self.model = cfg.get("model", "gpt-4o-mini")
-        self.system_prompt = cfg.get("system_prompt", "You are JARVIS, a concise voice assistant.")
+        self.system_prompt = self._load_system_prompt(cfg)
         self.max_history = int(cfg.get("max_history", 12))
         self.temperature = float(cfg.get("temperature", 0.6))
         self.timeout = int(cfg.get("timeout_seconds", 30))
 
         self._configured_enabled = bool(cfg.get("enabled", True))
         self._history: List[Dict[str, str]] = []
+
+    @staticmethod
+    def _load_system_prompt(cfg: Dict[str, Any]) -> str:
+        """Resolve the system prompt.
+
+        Order of precedence:
+            1. The file named by ``system_prompt_file`` (or the bundled
+               ``system_prompt.md`` next to this module if not set).
+            2. The inline ``system_prompt`` string from config.
+            3. A short built-in fallback.
+
+        A relative ``system_prompt_file`` is resolved against the project root
+        (the folder that contains the ``jarvis`` package).
+        """
+        inline = cfg.get("system_prompt")
+        configured = cfg.get("system_prompt_file")
+
+        module_dir = Path(__file__).resolve().parent          # jarvis/brain
+        project_root = module_dir.parent.parent               # repo root
+
+        if configured:
+            prompt_path = Path(configured)
+            if not prompt_path.is_absolute():
+                prompt_path = project_root / prompt_path
+        else:
+            prompt_path = module_dir / "system_prompt.md"
+
+        try:
+            text = prompt_path.read_text(encoding="utf-8").strip()
+            if text:
+                return text
+        except OSError:
+            # File missing or unreadable: fall through to the inline string.
+            if configured:
+                print(f"[brain] Could not read system prompt file '{prompt_path}'. Using inline prompt.")
+
+        if inline:
+            return str(inline)
+        return _FALLBACK_SYSTEM_PROMPT
 
     @property
     def enabled(self) -> bool:
