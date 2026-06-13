@@ -2,6 +2,9 @@
   "assistant_name": "Jarvis",
   "wake_word": "jarvis",
 
+  "language": "en",
+  "auto_detect_language": true,
+
   "voice": {
     "rate": 175,
     "volume": 1.0,
@@ -16,16 +19,63 @@
     "language": "en-US"
   },
 
+  "safety": {
+    "granted_permissions": ["web"],
+    "blocked_permissions": ["shell"],
+    "confirm_medium_risk": true,
+    "auto_confirm": false
+  },
+
+  "logging": {
+    "file": "jarvis_events.log",
+    "echo_console": true
+  },
+
   "llm": {
     "enabled": true,
-    "base_url": "https://api.openai.com/v1",
-    "api_key": "",
-    "model": "gpt-4o-mini",
+    "private": false,
     "system_prompt_file": "jarvis/brain/system_prompt.md",
     "system_prompt": "You are JARVIS, a concise, helpful voice assistant. Keep spoken replies short (1-3 sentences) unless asked for detail.",
     "max_history": 12,
     "temperature": 0.6,
-    "timeout_seconds": 30
+    "timeout_seconds": 30,
+
+    "providers": [
+      {
+        "type": "openai",
+        "name": "openai",
+        "model": "gpt-4o-mini",
+        "api_key": "",
+        "base_url": "https://api.openai.com/v1",
+        "priority": 10,
+        "capabilities": { "reasoning": 4, "coding": 4, "context_tokens": 128000 }
+      },
+      {
+        "type": "anthropic",
+        "name": "claude",
+        "model": "claude-3-5-sonnet-latest",
+        "api_key": "",
+        "priority": 5,
+        "capabilities": { "reasoning": 5, "coding": 5, "context_tokens": 200000 }
+      },
+      {
+        "type": "gemini",
+        "name": "gemini",
+        "model": "gemini-1.5-pro",
+        "api_key": "",
+        "priority": 20,
+        "capabilities": { "reasoning": 4, "coding": 3, "context_tokens": 1000000 }
+      },
+      {
+        "type": "local",
+        "name": "ollama",
+        "model": "llama3.1",
+        "base_url": "http://localhost:11434/v1",
+        "enabled": false,
+        "priority": 30,
+        "capabilities": { "reasoning": 3, "coding": 3, "local": true }
+      }
+    ]
   },
 
   "exit_phrases": ["goodbye", "shut down", "power down", "exit", "quit"],

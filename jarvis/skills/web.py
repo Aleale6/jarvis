@@ -1,10 +1,12 @@
-"""Open websites and run web searches in the default browser."""
+"""Open websites and run web searches in the default browser (multilingual)."""
 
 from __future__ import annotations
 
 import webbrowser
 from urllib.parse import quote_plus
 
+from ..core.safety import RiskLevel, SafetyRequest
+from ..i18n.triggers import matches_any, starts_with_verb, strip_trigger
 from .base import Skill, SkillContext
 
 # Friendly name -> URL for common sites the user can "open by name".
@@ -20,36 +22,59 @@ _KNOWN_SITES = {
     "stackoverflow": "https://stackoverflow.com",
 }
 
-_SEARCH_TRIGGERS = ["search the web for", "search for", "google", "search", "look up", "what is", "who is"]
-
 
 class WebSkill(Skill):
     name = "web"
     description = "Open a website or search the web."
 
     def matches(self, text: str) -> bool:
-        if text.startswith("open ") and self._target_is_site(text):
+        target = starts_with_verb(text)
+        if target and self._target_is_site(target):
             return True
-        return self._contains_any(text, _SEARCH_TRIGGERS)
+        return matches_any(text, "web.search")
 
-    def _target_is_site(self, text: str) -> bool:
-        target = text[len("open "):].strip()
-        return target in _KNOWN_SITES or target.endswith(".com") or target.endswith(".org") or target.startswith("http")
+    def _target_is_site(self, target: str) -> bool:
+        return (
+            target in _KNOWN_SITES
+            or target.endswith(".com")
+            or target.endswith(".org")
+            or target.startswith("http")
+        )
 
     def run(self, text: str, ctx: SkillContext) -> str:
-        # 1) "open youtube" / "open github.com"
-        if text.startswith("open ") and self._target_is_site(text):
-            target = text[len("open "):].strip()
+        # 1) "open youtube" / "öffne github.com"
+        target = starts_with_verb(text)
+        if target and self._target_is_site(target):
             url = self._resolve_site(target)
+            if not self._gate(ctx, action=f"open website {target}", url=url):
+                return ctx.t("safety.cancelled")
             webbrowser.open(url)
-            return f"Opening {target}."
+            ctx.logger.info(agent="web", action="open_site", result="ok", url=url)
+            return ctx.t("skill.web.opening", target=target)
 
         # 2) a web search
-        query = self._extract_query(text)
+        query = strip_trigger(text, "web.search")
         if not query:
-            return "What would you like me to search for?"
-        webbrowser.open(f"https://www.google.com/search?q={quote_plus(query)}")
-        return f"Searching the web for {query}."
+            return ctx.t("skill.web.what")
+        search_url = f"https://www.google.com/search?q={quote_plus(query)}"
+        if not self._gate(ctx, action=f"search the web for {query}", url=search_url):
+            return ctx.t("safety.cancelled")
+        webbrowser.open(search_url)
+        ctx.logger.info(agent="web", action="web_search", result="ok")
+        return ctx.t("skill.web.searching", query=query)
+
+    @staticmethod
+    def _gate(ctx: SkillContext, action: str, url: str) -> bool:
+        """Gate a browser action through the safety pipeline (category 'web')."""
+        request = SafetyRequest(
+            agent="web",
+            action=action,
+            category="web",
+            risk=RiskLevel.LOW,
+            reversible=True,
+            detail={"url": url},
+        )
+        return ctx.safety.authorize(request, confirm=ctx.confirm)
 
     @staticmethod
     def _resolve_site(target: str) -> str:
@@ -58,12 +83,3 @@ class WebSkill(Skill):
         if target.startswith("http"):
             return target
         return f"https://{target}"
-
-    @staticmethod
-    def _extract_query(text: str) -> str:
-        query = text
-        for trigger in _SEARCH_TRIGGERS:
-            if trigger in query:
-                query = query.split(trigger, 1)[1]
-                break
-        return query.strip(" ?.")

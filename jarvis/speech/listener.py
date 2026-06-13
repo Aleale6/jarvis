@@ -15,10 +15,17 @@ from typing import Any, Dict, Optional, Tuple
 
 
 class Listener:
-    def __init__(self, listener_cfg: Optional[Dict[str, Any]] = None, wake_word: str = "jarvis"):
+    def __init__(
+        self,
+        listener_cfg: Optional[Dict[str, Any]] = None,
+        wake_word: str = "jarvis",
+        language: Optional[str] = None,
+    ):
         cfg = listener_cfg or {}
         self.wake_word = (wake_word or "jarvis").strip().lower()
-        self.language = cfg.get("language", "en-US")
+        # An explicit ``language`` (e.g. the active locale "de-DE") overrides the
+        # static config value, so the recognizer follows the assistant's language.
+        self.language = language or cfg.get("language", "en-US")
         self.phrase_time_limit = cfg.get("phrase_time_limit", 8)
 
         self._sr = None
@@ -43,6 +50,11 @@ class Listener:
     @property
     def available(self) -> bool:
         return self._recognizer is not None and self._mic is not None
+
+    def set_language(self, language: str) -> None:
+        """Update the recognition locale (e.g. ``ru-RU``) at runtime."""
+        if language:
+            self.language = language
 
     def _calibrate(self) -> None:
         """Sample ambient noise once so recognition adapts to the room."""

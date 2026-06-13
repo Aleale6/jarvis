@@ -13,5 +13,7 @@ SpeechRecognition==3.10.4
 #   pip install pipwin && pipwin install pyaudio
 PyAudio==0.2.14
 
-# HTTP client used by the LLM brain
+# HTTP client used by every AI provider (OpenAI / Anthropic / Gemini / local).
+# This is the only dependency the multi-provider router needs - each provider
+# talks to its REST API directly over HTTP, so no per-vendor SDK is required.
 requests==2.32.3
